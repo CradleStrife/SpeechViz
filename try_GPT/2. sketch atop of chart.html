@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sketch on Vega-Lite Chart</title>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    #container {
+      position: relative;
+      width: 800px;
+      height: 500px;
+    }
+    #chart {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+    #sketchCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 2;
+      cursor: crosshair;
+    }
+    #controls {
+      margin: 10px 0;
+    }
+    button {
+      padding: 5px 10px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Sketch on Vega-Lite Chart</h1>
+  <p>Draw on the chart, and the data points intersecting with the sketch will be highlighted. Use the "Clear Sketch" button to erase the sketch.</p>
+
+  <div id="controls">
+    <button id="clearSketch">Clear Sketch</button>
+  </div>
+
+  <div id="container">
+    <div id="chart"></div>
+    <canvas id="sketchCanvas"></canvas>
+  </div>
+
+  <script>
+    // Data for the chart
+    const data = [
+      { x: 10, y: 50, category: "A" },
+      { x: 20, y: 80, category: "B" },
+      { x: 30, y: 60, category: "C" },
+      { x: 40, y: 90, category: "A" },
+      { x: 50, y: 40, category: "B" },
+      { x: 60, y: 70, category: "C" },
+      { x: 70, y: 30, category: "A" },
+      { x: 80, y: 20, category: "B" },
+    ];
+
+    // Vega-Lite specification
+    const spec = {
+      $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+      description: "Interactive chart with sketching support.",
+      data: { values: data },
+      mark: { type: "point", tooltip: true },
+      encoding: {
+        x: { field: "x", type: "quantitative" },
+        y: { field: "y", type: "quantitative" },
+        color: { field: "category", type: "nominal" },
+        size: {
+          condition: { test: "datum.highlighted === 'yes'", value: 300 },
+          value: 100
+        }
+      },
+      config: {
+        mark: { filled: true },
+      },
+      width: 800,
+      height: 500
+    };
+
+    // Embed the Vega-Lite chart
+    let view; // Vega view instance (to interact with the chart)
+    vegaEmbed("#chart", spec, { renderer: "svg" }).then(result => {
+      view = result.view;
+
+      // Ensure the canvas matches the chart's dimensions and position
+      const container = document.querySelector("#container");
+      const canvas = document.getElementById("sketchCanvas");
+      const chartElement = document.getElementById("chart").querySelector("svg");
+      const boundingBox = chartElement.getBoundingClientRect();
+
+      // Position the canvas exactly over the chart
+      canvas.style.top = `${chartElement.offsetTop}px`;
+      canvas.style.left = `${chartElement.offsetLeft}px`;
+      canvas.width = boundingBox.width;
+      canvas.height = boundingBox.height;
+      const ctx = canvas.getContext("2d");
+      console.log("ctx", ctx);  
+
+
+      // Initialize Canvas overlay
+    //   const container = document.querySelector("#container");
+    //   const canvas = document.getElementById("sketchCanvas");
+    //   canvas.width = container.offsetWidth;
+    //   canvas.height = container.offsetHeight;
+    //   const ctx = canvas.getContext("2d");
+    //   console.log("ctx", ctx);  
+
+      // Variables for drawing
+      let isDrawing = false;
+      let sketchPath = [];
+
+      // Mouse event handlers
+      canvas.addEventListener("mousedown", (e) => {
+        isDrawing = true;
+        sketchPath = [[e.offsetX, e.offsetY]];
+        ctx.beginPath();
+        ctx.moveTo(e.offsetX, e.offsetY);
+      });
+
+      canvas.addEventListener("mousemove", (e) => {
+        if (!isDrawing) return;
+        sketchPath.push([e.offsetX, e.offsetY]);
+        ctx.lineTo(e.offsetX, e.offsetY);
+        ctx.strokeStyle = "rgba(200, 0, 0, 0.5)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      });
+
+      canvas.addEventListener("mouseup", () => {
+        isDrawing = false;
+        ctx.closePath();
+        console.log("sketchPath", sketchPath);
+
+        highlightPoints(sketchPath);
+      });
+
+      // Function to highlight points within the sketch
+      function highlightPoints(sketch) {
+        // Create a Path2D object for the sketch
+        const path = new Path2D();
+        path.moveTo(sketch[0][0], sketch[0][1]);
+        sketch.forEach(([x, y]) => path.lineTo(x, y));
+        path.closePath();
+        console.log("Path2D", path);
+
+        // Get Vega scales for x and y axes
+        const xScale = view.scale("x");
+        const yScale = view.scale("y");
+        console.log("xScale", xScale, "yScale", yScale);
+
+        // Check which points are inside the sketch
+        const highlightedData = data.filter(d => {
+          // Map data coordinates to screen (pixel) coordinates
+          const pixelX = xScale(d.x) + 30;
+          const pixelY = yScale(d.y) + 10;
+          console.log("coordinates", pixelX, pixelY);
+          
+
+          // Check if the point is inside the sketch
+          return ctx.isPointInPath(path, pixelX, pixelY);
+        });
+
+        // Highlight points on the chart
+        view.change(
+          "source_0", // Vega's internal data source
+          vega.changeset().remove(() => true).insert(data.map(d => ({
+            ...d,
+            highlighted: highlightedData.includes(d) ? "yes" : "no"
+          })))
+        ).run();
+
+        // Log the highlighted data (optional)
+        console.log("Highlighted Data:", highlightedData);
+      }
+
+      // Clear Sketch Button
+      document.getElementById("clearSketch").addEventListener("click", () => {
+        // Clear the canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        sketchPath = [];
+
+        // Reset highlighted points
+        view.change(
+          "source_0",
+          vega.changeset().remove(() => true).insert(data.map(d => ({
+            ...d,
+            highlighted: "no"
+          })))
+        ).run();
+      });
+    }).catch(console.error);
+  </script>
+</body>
+</html>

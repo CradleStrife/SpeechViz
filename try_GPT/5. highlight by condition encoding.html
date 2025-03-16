@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scatter Plot with Cluster Highlight</title>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #chart-container {
+      position: relative;
+      width: 500px;
+      height: 300px;
+    }
+
+    #controls {
+      margin: 20px;
+      text-align: center;
+    }
+
+    select {
+      margin: 10px;
+      padding: 10px 15px;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      background-color: white;
+      color: black;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    select:hover {
+      border-color: #007bff;
+    }
+  </style>
+</head>
+<body>
+  <h1>Scatter Plot with Cluster Highlight</h1>
+  <div id="controls">
+    <label for="cluster-select">Highlight Cluster:</label>
+    <select id="cluster-select">
+      <option value="none">None</option>
+      <option value="Cluster 1">Cluster 1</option>
+      <option value="Cluster 2">Cluster 2</option>
+      <option value="Cluster 3">Cluster 3</option>
+    </select>
+  </div>
+  <div id="chart-container">
+    <div id="chart"></div>
+  </div>
+
+  <script>
+    // Data for scatter plot
+    const data = [
+      // Cluster 1
+      { cluster: "Cluster 1", x: 1.2, y: 2.4 },
+      { cluster: "Cluster 1", x: 1.5, y: 3.1 },
+      { cluster: "Cluster 1", x: 1.8, y: 2.3 },
+      { cluster: "Cluster 1", x: 2.1, y: 3.0 },
+      { cluster: "Cluster 1", x: 1.9, y: 2.7 },
+
+      // Cluster 2
+      { cluster: "Cluster 2", x: 6.5, y: 8.1 },
+      { cluster: "Cluster 2", x: 6.8, y: 7.4 },
+      { cluster: "Cluster 2", x: 7.0, y: 8.0 },
+      { cluster: "Cluster 2", x: 6.9, y: 7.8 },
+      { cluster: "Cluster 2", x: 7.2, y: 7.5 },
+
+      // Cluster 3
+      { cluster: "Cluster 3", x: 4.0, y: 5.5 },
+      { cluster: "Cluster 3", x: 4.2, y: 5.7 },
+      { cluster: "Cluster 3", x: 4.4, y: 5.8 },
+      { cluster: "Cluster 3", x: 4.5, y: 5.9 },
+      { cluster: "Cluster 3", x: 4.3, y: 5.6 },
+
+      // Additional points in clusters
+      { cluster: "Cluster 1", x: 1.6, y: 2.9 },
+      { cluster: "Cluster 2", x: 7.1, y: 7.9 },
+      { cluster: "Cluster 3", x: 4.1, y: 5.4 },
+      { cluster: "Cluster 1", x: 2.0, y: 2.8 },
+      { cluster: "Cluster 2", x: 6.7, y: 8.2 }
+    ];
+
+    // Initial Vega-Lite specification for scatter plot
+    const baseSpec = {
+      $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+      description: "A scatter plot with programmatic cluster highlighting.",
+      data: { values: data },
+      mark: {
+        type: "point",
+        filled: true,
+        size: 80
+      },
+      encoding: {
+        x: {
+          field: "x",
+          type: "quantitative",
+          title: "X Coordinate"
+        },
+        y: {
+          field: "y",
+          type: "quantitative",
+          title: "Y Coordinate"
+        },
+        color: {
+          field: "cluster",
+          type: "nominal",
+          title: "Cluster",
+          scale: {
+            scheme: "category10" // Provides distinct colors for clusters
+          }
+        },
+        opacity: {
+          condition: { test: "datum.cluster === selectedCluster", value: 1 },
+          value: 0.3 // Dim other clusters
+        },
+        size: {
+          condition: { test: "datum.cluster === selectedCluster", value: 150 },
+          value: 80 // Increase size for highlighted cluster
+        },
+        tooltip: [
+          { field: "cluster", title: "Cluster" },
+          { field: "x", title: "X" },
+          { field: "y", title: "Y" }
+        ]
+      },
+      width: 500, // Adjusted width
+      height: 300, // Adjusted height
+      params: [
+        {
+          name: "selectedCluster",
+          value: null, // Default: no cluster selected
+        }
+      ]
+    };
+
+    // Render the scatter plot
+    function renderChart(selectedCluster) {
+      const updatedSpec = {
+        ...baseSpec,
+        params: [
+          {
+            name: "selectedCluster",
+            value: selectedCluster, // Update the selected cluster programmatically
+          }
+        ],
+      };
+
+      vegaEmbed("#chart", updatedSpec, { renderer: "svg", actions: false });
+    }
+
+    // Initial render with no cluster selected
+    renderChart(null);
+
+    // Event listener for cluster selection
+    const clusterSelect = document.getElementById("cluster-select");
+    clusterSelect.addEventListener("change", (event) => {
+      const selectedCluster = event.target.value === "none" ? null : event.target.value;
+      renderChart(selectedCluster); // Re-render the chart with the selected cluster
+    });
+  </script>
+</body>
+</html>

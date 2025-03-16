@@ -1,0 +1,121 @@
+.App {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  text-align: center;
+}
+
+.main-container {
+  width: 850px;
+  padding: 10px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.first-row {
+  width: 100%;
+  padding: 10px;
+}
+
+.second-row {
+  width: 100%;
+  padding: 10px;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.speech-panel {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.feedback-panel {
+  width: 33%;
+}
+
+.chart-panel {
+  width: 66%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+/* #chart-container {
+  
+} */
+
+#chart-overlay {
+  /* position: absolute; */
+  /* top: 10px; */
+  /* left: 33px; */
+  
+  z-index: 1;
+  /* Allows interaction with the chart below */
+  pointer-events: none;
+}
+
+#chart-tooltip {
+  position: absolute;
+  background-color: rgba(184, 180, 180, 0.8);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  /* Prevent tooltip from blocking interactions */
+  pointer-events: none;
+  /* Tooltip is hidden by default */
+  visibility: hidden;
+  z-index: 2;
+}
+
+/* draw grids and lables */
+.grid-highlighted {
+  /* Highlighted background for grid cell */
+  fill: lightblue;
+}
+
+
+/* template css */
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}

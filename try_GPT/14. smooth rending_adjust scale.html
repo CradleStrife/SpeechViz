@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+</head>
+
+<body>
+    <div id="chart"></div>
+    <div style="margin-top: 20px;">
+        <label for="x-min">X Min:</label>
+        <input id="x-min" type="number" placeholder="Set X Min..." />
+        <label for="x-max">X Max:</label>
+        <input id="x-max" type="number" placeholder="Set X Max..." />
+        <button id="update-scale">Update X Scale</button>
+    </div>
+
+    <script>
+        // Define the Vega-Lite specification for the scatter plot
+        const spec = {
+            $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+            data: { name: "table" }, // Placeholder for programmatic data updates
+            mark: "point",
+            encoding: {
+                x: {
+                    field: "x",
+                    type: "quantitative",
+                    scale: { domain: { param: "xDomain" } }, // Dynamically update scale domain using parameter
+                    axis: { title: "X-Axis" }
+                },
+                y: {
+                    field: "y",
+                    type: "quantitative",
+                    axis: { title: "Y-Axis" }
+                },
+                color: { field: "category", type: "nominal", legend: { title: "Category" } },
+                // size: { field: "size", type: "quantitative", legend: { title: "Size" } }
+            },
+            params: [
+                {
+                    name: "xDomain", // A parameter to control the x-axis domain
+                    value: [0, 50] // Default domain for the x-axis
+                }
+            ]
+        };
+
+        // Initial data for the scatter plot
+        const data = [
+            { x: 8, y: 18, category: "A", size: 25 },
+            { x: 10, y: 15, category: "A", size: 35 },
+            { x: 12, y: 22, category: "A", size: 40 },
+            { x: 12, y: 24, category: "B", size: 45 },
+            { x: 15, y: 25, category: "B", size: 50 },
+            { x: 15, y: 30, category: "C", size: 50 },
+            { x: 18, y: 28, category: "A", size: 55 },
+            { x: 20, y: 19, category: "C", size: 40 },
+            { x: 21, y: 34, category: "B", size: 70 },
+            { x: 22, y: 36, category: "C", size: 75 },
+            { x: 22, y: 46, category: "C", size: 90 },
+            { x: 25, y: 25, category: "B", size: 60 },
+            { x: 26, y: 38, category: "A", size: 85 },
+            { x: 27, y: 37, category: "A", size: 100 },
+            { x: 27, y: 48, category: "B", size: 100 },
+            { x: 28, y: 41, category: "B", size: 65 },
+            { x: 30, y: 35, category: "A", size: 75 },
+            { x: 30, y: 40, category: "B", size: 60 },
+            { x: 30, y: 45, category: "C", size: 95 },
+            { x: 32, y: 42, category: "B", size: 120 },
+            { x: 32, y: 52, category: "A", size: 105 },
+            { x: 35, y: 40, category: "C", size: 90 },
+            { x: 35, y: 50, category: "B", size: 110 },
+            { x: 37, y: 58, category: "C", size: 115 },
+            { x: 40, y: 45, category: "B", size: 100 },
+            { x: 40, y: 55, category: "A", size: 120 },
+            { x: 42, y: 64, category: "B", size: 125 },
+            { x: 45, y: 70, category: "A", size: 130 }
+        ];
+
+        // Embed the chart and enable scale adjustments
+        vegaEmbed("#chart", spec).then(({ view }) => {
+            // Insert initial data
+            view.change("table", vega.changeset().insert(data)).run();
+
+            // Add event listener to update the x-axis domain
+            document.getElementById("update-scale").addEventListener("click", () => {
+                const xMin = Number(document.getElementById("x-min").value) || 0;
+                const xMax = Number(document.getElementById("x-max").value) || 50;
+
+                // Update the xDomain parameter to adjust the scale
+                view.signal("xDomain", [xMin, xMax]).run();
+            });
+        });
+    </script>
+</body>
+
+</html>

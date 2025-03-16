@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scatter Plot with Enhanced SVG Overlay and Tooltip</title>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #chart-container {
+      position: relative;
+      width: 600px;
+      height: 400px;
+    }
+
+    #chart {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    #svg-overlay {
+      position: absolute;
+      top: 10px;
+      /* Adjusted top position */
+      left: 39px;
+      /* Adjusted left position */
+      width: 600px;
+      height: 400px;
+      z-index: 1;
+      pointer-events: none;
+      /* Allows interaction with the chart below */
+    }
+
+    #tooltip {
+      position: absolute;
+      background-color: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      pointer-events: none;
+      /* Prevent tooltip from blocking interactions */
+      visibility: hidden;
+      /* Tooltip is hidden by default */
+    }
+
+    #controls {
+      margin: 20px;
+      text-align: center;
+    }
+
+    button,
+    input[type="range"] {
+      margin: 10px;
+      padding: 10px 15px;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      border-radius: 5px;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    input[type="range"] {
+      width: 200px;
+      background: #ddd;
+      border-radius: 5px;
+      height: 10px;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    .grid-line {
+      stroke: rgba(0, 0, 0, 0.2);
+      stroke-width: 1.5;
+    }
+
+    .grid-label {
+      font-size: 14px;
+      fill: rgba(0, 0, 0, 1);
+      text-anchor: middle;
+    }
+
+    .highlighted {
+      font-size: 16px;
+      fill: red;
+      font-weight: bold;
+    }
+
+    .hidden {
+      display: none;
+      /* Hides the overlay grids and labels */
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Scatter Plot with Enhanced SVG Overlay and Tooltip</h1>
+  <div id="controls">
+    <button id="toggle-chart-grid">Toggle Vega-Lite Grids</button>
+    <button id="toggle-overlay-grid">Toggle Overlay Grid</button>
+    <br>
+    <label for="sparsity-slider">Grid Sparsity:</label>
+    <input id="sparsity-slider" type="range" min="20" max="100" value="50">
+    <br>
+    <label for="highlight-slider">Highlight Grid Cell:</label>
+    <input id="highlight-slider" type="range" min="1" max="100" value="1">
+  </div>
+  <div id="chart-container">
+    <div id="chart"></div>
+    <svg id="svg-overlay"></svg>
+    <div id="tooltip"></div> <!-- Tooltip -->
+  </div>
+
+  <script>
+    let chartGridVisible = true; // Tracks if Vega-Lite gridlines are visible
+    let overlayGridVisible = true; // Tracks if the overlay grid is visible
+    let gridSparsity = 50; // Initial grid sparsity
+    let highlightedLabel = 1; // Initial label to highlight
+
+    // Default Vega-Lite specification
+    let spec = {
+      $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+      description: "A scatter plot with an SVG overlay for custom grids and labels.",
+      data: {
+        values: [
+          { category: "A", x: 1, y: 30 },
+          { category: "B", x: 2, y: 80 },
+          { category: "C", x: 3, y: 45 },
+          { category: "D", x: 4, y: 60 },
+          { category: "E", x: 5, y: 20 },
+          { category: "F", x: 6, y: 90 },
+          { category: "G", x: 7, y: 50 }
+        ]
+      },
+      mark: {
+        type: "point",
+        tooltip: true
+      },
+      encoding: {
+        x: {
+          field: "x",
+          type: "quantitative",
+          title: "X-Axis",
+          axis: { grid: true } // Enables gridlines initially
+        },
+        y: {
+          field: "y",
+          type: "quantitative",
+          title: "Y-Axis",
+          axis: { grid: true } // Enables gridlines initially
+        },
+        color: {
+          field: "category",
+          type: "nominal",
+          title: "Category",
+          scale: { scheme: "category10" }
+        }
+      },
+      width: 600,
+      height: 400
+    };
+
+    const chartContainer = document.getElementById("chart-container");
+    const svgOverlay = document.getElementById("svg-overlay");
+    const tooltip = document.getElementById("tooltip");
+    const toggleChartGridButton = document.getElementById("toggle-chart-grid");
+    const toggleOverlayGridButton = document.getElementById("toggle-overlay-grid");
+    const sparsitySlider = document.getElementById("sparsity-slider");
+    const highlightSlider = document.getElementById("highlight-slider");
+
+    // Function to render the chart with the current spec
+    function renderChart() {
+      vegaEmbed("#chart", spec, { renderer: "svg", actions: false }).then(() => {
+        drawGrid(gridSparsity, highlightedLabel); // After rendering, draw the overlay grid
+      });
+    }
+
+    // Function to draw overlay grids
+    function drawGrid(sparsity = 50, highlight = 1) {
+      svgOverlay.innerHTML = ""; // Clear existing grid
+      let labelCount = 1; // Start label numbering from 1
+
+      for (let y = 0; y <= svgOverlay.clientHeight; y += sparsity) {
+        for (let x = 0; x <= svgOverlay.clientWidth; x += sparsity) {
+          // Draw grid lines
+          if (x < svgOverlay.clientWidth) {
+            const verticalLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            verticalLine.setAttribute("x1", x);
+            verticalLine.setAttribute("y1", y);
+            verticalLine.setAttribute("x2", x + sparsity);
+            verticalLine.setAttribute("y2", y);
+            verticalLine.classList.add("grid-line");
+            svgOverlay.appendChild(verticalLine);
+          }
+
+          if (y < svgOverlay.clientHeight) {
+            const horizontalLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            horizontalLine.setAttribute("x1", x);
+            horizontalLine.setAttribute("y1", y);
+            horizontalLine.setAttribute("x2", x);
+            horizontalLine.setAttribute("y2", y + sparsity);
+            horizontalLine.classList.add("grid-line");
+            svgOverlay.appendChild(horizontalLine);
+          }
+
+          // Add labels
+          if (x + sparsity <= svgOverlay.clientWidth && y + sparsity <= svgOverlay.clientHeight) {
+            const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            label.setAttribute("x", x + sparsity / 2);
+            label.setAttribute("y", y + sparsity / 2);
+            label.setAttribute("dy", "0.35em");
+            label.classList.add("grid-label");
+
+            if (labelCount === highlight) {
+              label.classList.add("highlighted"); // Highlight selected label
+
+              // Calculate the coordinates of the highlighted cell
+              const gridX = x + sparsity / 2;
+              const gridY = y + sparsity / 2;
+
+              // Position the tooltip with a small gap dynamically
+              const gap = 8; // Gap between tooltip and grid cell
+              tooltip.style.visibility = "visible";
+              tooltip.style.top = `${gridY + gap + 10}px`; // Above the cell
+              tooltip.style.left = `${gridX + gap + 39}px`; // Slightly to the right
+              tooltip.textContent = `Grid Cell: ${labelCount}, Coords: (${gridX}, ${gridY})`;
+            }
+
+            label.textContent = labelCount;
+            svgOverlay.appendChild(label);
+            labelCount++;
+          }
+        }
+      }
+    }
+
+    // Toggle Vega-Lite gridlines by modifying the spec
+    toggleChartGridButton.addEventListener("click", () => {
+      chartGridVisible = !chartGridVisible;
+
+      // Update the spec to hide/show gridlines
+      spec.encoding.x.axis.grid = chartGridVisible;
+      spec.encoding.y.axis.grid = chartGridVisible;
+
+      // Re-render the chart
+      renderChart();
+    });
+
+    // Toggle overlay grid visibility
+    toggleOverlayGridButton.addEventListener("click", () => {
+      overlayGridVisible = !overlayGridVisible;
+
+      // Show or hide the overlay SVG
+      if (overlayGridVisible) {
+        svgOverlay.classList.remove("hidden");
+        tooltip.style.visibility = "visible";
+      } else {
+        svgOverlay.classList.add("hidden");
+        tooltip.style.visibility = "hidden";
+      }
+    });
+
+    // Initialize chart and grid
+    renderChart();
+
+    // Add event listener to sparsity slider
+    sparsitySlider.addEventListener("input", (event) => {
+      gridSparsity = parseInt(event.target.value, 10);
+      drawGrid(gridSparsity, highlightedLabel);
+    });
+
+    // Add event listener to highlight slider
+    highlightSlider.addEventListener("input", (event) => {
+      highlightedLabel = parseInt(event.target.value, 10);
+      drawGrid(gridSparsity, highlightedLabel);
+    });
+  </script>
+</body>
+
+</html>

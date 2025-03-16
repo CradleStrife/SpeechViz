@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chart with Canvas Overlay and Tooltip</title>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+    #chart-container {
+      position: relative;
+      width: 600px;
+      height: 400px;
+    }
+    #chart {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    #overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none; /* Allow mouse events to pass through the canvas */
+    }
+    #tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-size: 12px;
+      pointer-events: none;
+      display: none; /* Initially hidden */
+    }
+  </style>
+</head>
+<body>
+  <h1>Chart with Canvas Overlay and Tooltip</h1>
+  <div id="chart-container">
+    <div id="chart"></div>
+    <canvas id="overlay"></canvas>
+    <div id="tooltip"></div>
+  </div>
+
+  <script>
+    // Data for grouped bar chart
+    const data = [
+      { x: 1, y: 20, category: "A" },
+      { x: 1, y: 15, category: "B" },
+      { x: 1, y: 10, category: "C" },
+      { x: 2, y: 25, category: "A" },
+      { x: 2, y: 20, category: "B" },
+      { x: 2, y: 15, category: "C" },
+      { x: 3, y: 30, category: "A" },
+      { x: 3, y: 25, category: "B" },
+      { x: 3, y: 20, category: "C" },
+      { x: 4, y: 35, category: "A" },
+      { x: 4, y: 30, category: "B" },
+      { x: 4, y: 25, category: "C" },
+      { x: 5, y: 40, category: "A" },
+      { x: 5, y: 35, category: "B" },
+      { x: 5, y: 30, category: "C" }
+    ];
+
+    // Vega-Lite specification
+    const spec = {
+      $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+      description: "Grouped bar chart with custom tooltip using canvas overlay",
+      data: { values: data },
+      mark: "bar",
+      encoding: {
+        x: { field: "x", type: "ordinal", title: "Group" },
+        y: { field: "y", type: "quantitative", title: "Value" },
+        color: { field: "category", type: "nominal", title: "Category" },
+        tooltip: null // Disable default tooltips
+      },
+      width: 600,
+      height: 400
+    };
+
+    // Embed the Vega-Lite chart
+    vegaEmbed("#chart", spec, { renderer: "canvas", actions: false }).then(result => {
+      const view = result.view;
+
+      // Get the overlay canvas and tooltip
+      const canvas = document.getElementById("overlay");
+      const tooltip = document.getElementById("tooltip");
+      const ctx = canvas.getContext("2d");
+
+      // Set canvas dimensions
+      canvas.width = 600;
+      canvas.height = 400;
+
+      // Listen for mousemove events to show tooltip
+      view.addEventListener("mousemove", (event, item) => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
+
+        if (item && item.datum) {
+          // Highlight the hovered bar with a border
+          ctx.strokeStyle = "red";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(item.bounds.x1, item.bounds.y1, item.bounds.width(), item.bounds.height());
+
+          // Show tooltip
+          tooltip.style.left = `${event.clientX + 10}px`;
+          tooltip.style.top = `${event.clientY + 10}px`;
+          tooltip.style.display = "block";
+          tooltip.innerHTML = `
+            <strong>Group:</strong> ${item.datum.x}<br>
+            <strong>Category:</strong> ${item.datum.category}<br>
+            <strong>Value:</strong> ${item.datum.y}
+          `;
+        } else {
+          tooltip.style.display = "none"; // Hide tooltip when not hovering over a bar
+        }
+      });
+    });
+  </script>
+</body>
+</html>

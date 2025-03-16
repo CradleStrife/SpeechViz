@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Adjust Domains with Sliders</title>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+    #controls {
+      margin-bottom: 20px;
+    }
+    .slider-container {
+      margin-bottom: 10px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input[type="range"] {
+      width: 100%;
+    }
+    button {
+      margin-top: 10px;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Adjust Domains with Sliders</h1>
+  <div id="controls">
+    <div class="slider-container">
+      <label for="x-range">X-Axis Range</label>
+      <input type="range" id="x-min" min="0" max="10" step="0.1" value="0">
+      <input type="range" id="x-max" min="0" max="10" step="0.1" value="10">
+    </div>
+    <div class="slider-container">
+      <label for="y-range">Y-Axis Range</label>
+      <input type="range" id="y-min" min="0" max="100" step="1" value="0">
+      <input type="range" id="y-max" min="0" max="100" step="1" value="100">
+    </div>
+    <button id="reset">Reset</button>
+  </div>
+  <div id="chart"></div>
+
+  <script>
+    // Initial data
+    const data = [
+      { x: 1, y: 1 }, { x: 2, y: 4 }, { x: 3, y: 9 },
+      { x: 4, y: 16 }, { x: 5, y: 25 }, { x: 6, y: 36 },
+      { x: 7, y: 49 }, { x: 8, y: 64 }, { x: 9, y: 81 },
+      { x: 10, y: 100 }
+    ];
+
+    // Initial domains
+    let xDomain = [0, 10];
+    let yDomain = [0, 100];
+
+    const chartContainer = document.getElementById("chart");
+
+    // Initial Vega-Lite Specification
+    const initialSpec = {
+      $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+      description: "A scatter plot with interactive sliders to adjust domains.",
+      data: { values: data },
+      mark: "point",
+      encoding: {
+        x: {
+          field: "x",
+          type: "quantitative",
+          scale: { domain: xDomain }, // Initial x-axis domain
+          title: "X-Axis"
+        },
+        y: {
+          field: "y",
+          type: "quantitative",
+          scale: { domain: yDomain }, // Initial y-axis domain
+          title: "Y-Axis"
+        }
+      },
+      width: 600,
+      height: 400
+    };
+
+    // Render chart
+    function renderChart() {
+      // Filter data based on current domains
+      const filteredData = data.filter(d => 
+        d.x >= xDomain[0] && d.x <= xDomain[1] &&
+        d.y >= yDomain[0] && d.y <= yDomain[1]
+      );
+
+      // Updated Vega-Lite spec with filtered data and updated domains
+      const updatedSpec = {
+        ...initialSpec,
+        data: { values: filteredData },
+        encoding: {
+          ...initialSpec.encoding,
+          x: {
+            ...initialSpec.encoding.x,
+            scale: { domain: xDomain }
+          },
+          y: {
+            ...initialSpec.encoding.y,
+            scale: { domain: yDomain }
+          }
+        }
+      };
+
+      vegaEmbed(chartContainer, updatedSpec, { renderer: "svg", actions: false });
+    }
+
+    // Update domains based on slider values
+    function updateDomains() {
+      const xMin = parseFloat(document.getElementById("x-min").value);
+      const xMax = parseFloat(document.getElementById("x-max").value);
+      const yMin = parseFloat(document.getElementById("y-min").value);
+      const yMax = parseFloat(document.getElementById("y-max").value);
+
+      // Ensure min values are less than max values
+      if (xMin < xMax) xDomain = [xMin, xMax];
+      if (yMin < yMax) yDomain = [yMin, yMax];
+
+      renderChart();
+    }
+
+    // Reset domains and sliders
+    function resetDomains() {
+      xDomain = [0, 10];
+      yDomain = [0, 100];
+
+      // Reset slider values
+      document.getElementById("x-min").value = 0;
+      document.getElementById("x-max").value = 10;
+      document.getElementById("y-min").value = 0;
+      document.getElementById("y-max").value = 100;
+
+      renderChart();
+    }
+
+    // Attach slider event listeners
+    document.getElementById("x-min").addEventListener("input", updateDomains);
+    document.getElementById("x-max").addEventListener("input", updateDomains);
+    document.getElementById("y-min").addEventListener("input", updateDomains);
+    document.getElementById("y-max").addEventListener("input", updateDomains);
+
+    // Attach reset button event listener
+    document.getElementById("reset").addEventListener("click", resetDomains);
+
+    // Initial render
+    renderChart();
+  </script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Extract Vega-Lite Data</title>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5.25.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5.14.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6.22.1"></script>
+</head>
+<body>
+  <h1>Vega-Lite Chart with Data Extraction</h1>
+  <div id="chart"></div>
+  <button id="get-data">Get Data</button>
+  <pre id="data-output"></pre>
+
+  <script>
+    // Vega-Lite specification for the histogram
+    const spec = {
+      "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+      "description": "A histogram with conditional coloring based on bin ranges.",
+      "data": {
+        "values": [
+          {"IMDB Rating": 7.2},
+          {"IMDB Rating": 8.5},
+          {"IMDB Rating": 6.7},
+          {"IMDB Rating": 9.0},
+          {"IMDB Rating": 7.8},
+          {"IMDB Rating": 5.4},
+          {"IMDB Rating": 6.8},
+          {"IMDB Rating": 8.0},
+          {"IMDB Rating": 7.1},
+          {"IMDB Rating": 6.3},
+          {"IMDB Rating": 7.5},
+          {"IMDB Rating": 6.9},
+          {"IMDB Rating": 8.3}
+        ]
+      },
+      "mark": "bar",
+      "encoding": {
+        "x": {
+          "bin": true,
+          "field": "IMDB Rating",
+          "type": "quantitative",
+          "axis": {"title": "IMDB Rating"}
+        },
+        "y": {
+          "aggregate": "count",
+          "type": "quantitative",
+          "axis": {"title": "Number of Movies"}
+        },
+        "color": {
+          "condition": {
+            "test": "datum['__count'] == 3",
+            "value": "red"
+          },
+          "value": "steelblue"
+        }
+      }
+    };
+
+    // Render the chart using Vega-Embed
+    let view; // To store the Vega view object
+    vegaEmbed("#chart", spec).then(result => {
+      view = result.view; // Store the Vega view object
+    }).catch(console.error);
+
+    // Add a button click event to extract and display data
+    document.getElementById("get-data").addEventListener("click", () => {
+      if (view) {
+        // Extract the transformed data from the Vega view
+        const data = view.data("data_0"); // "source_0" is the default dataset name
+        document.getElementById("data-output").textContent = JSON.stringify(data, null, 2);
+      } else {
+        document.getElementById("data-output").textContent = "Chart not loaded yet.";
+      }
+    });
+  </script>
+</body>
+</html>

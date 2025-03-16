@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Movie Ratings Bar Chart</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+    .bar {
+      cursor: pointer;
+    }
+    .highlighted {
+      fill: orange !important;
+    }
+    .gridline {
+      stroke: lightgray;
+      stroke-opacity: 0.7;
+      shape-rendering: crispEdges;
+    }
+    .tooltip {
+      position: absolute;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-size: 12px;
+      display: none;
+      pointer-events: none;
+    }
+    #controls {
+      margin-bottom: 20px;
+    }
+    #controls label,
+    #controls select,
+    #controls input,
+    #controls button {
+      margin-right: 15px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Interactive Movie Ratings Bar Chart</h1>
+
+  <!-- Control Panel -->
+  <div id="controls">
+    <label for="rating-scale-slider">Rating Scale:</label>
+    <input type="range" id="rating-scale-slider" min="5" max="20" value="10" step="1">
+    <span id="rating-scale-value">10</span>
+
+    <label for="sort-options">Sort By:</label>
+    <select id="sort-options">
+      <option value="rating">Rating</option>
+      <option value="name">Name</option>
+    </select>
+
+    <label for="aggregate-function">Aggregate:</label>
+    <select id="aggregate-function">
+      <option value="none" selected>None</option>
+      <option value="min">Min</option>
+      <option value="max">Max</option>
+      <option value="sum">Sum</option>
+      <option value="mean">Mean</option>
+    </select>
+
+    <label>
+      <input type="checkbox" id="toggle-grid" checked> Show Gridlines
+    </label>
+
+    <button id="reset-zoom">Reset Zoom</button>
+
+    <label for="color-picker">Bar Color:</label>
+    <input type="color" id="color-picker" value="#4682b4">
+
+    <label for="filter-slider">Filter by Rating:</label>
+    <input type="range" id="filter-slider" min="0" max="10" value="10" step="0.1">
+    <span id="filter-value">10</span>
+
+    <button id="toggle-labels">Show Labels</button>
+
+    <button id="reset-chart">Reset Chart</button>
+  </div>
+
+  <!-- Tooltip -->
+  <div class="tooltip" id="tooltip"></div>
+
+  <script>
+    // Movie dataset
+    const originalMovies = [
+      { title: "The Shawshank Redemption", rating: 9.3 },
+      { title: "The Godfather", rating: 7.2 },
+      { title: "The Dark Knight", rating: 5.0 },
+      { title: "12 Angry Men", rating: 3.0 },
+      { title: "Wolf", rating: 9.3 },
+      { title: "Vampire", rating: 8.6 },
+      { title: "Lion", rating: 6.0 },
+      { title: "Disney", rating: 5.0 },
+      { title: "Netflix", rating: 10.0 },
+      { title: "Virgin River", rating: 9.5 }
+    ];
+
+    let movies = [...originalMovies]; // Clone the dataset
+    let showLabels = false; // State to track if labels are currently shown
+
+    // Dimensions and margins
+    const margin = { top: 50, right: 100, bottom: 50, left: 100 };
+    const width = 800 - margin.left - margin.right;
+    const height = 400 - margin.top - margin.bottom;
+
+    // Create SVG container with zoom and pan support
+    const svgContainer = d3.select("body")
+      .append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom);
+
+    const svg = svgContainer
+      .append("g")
+      .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+    // Add zoom and pan
+    const zoom = d3.zoom()
+      .scaleExtent([1, 5]) // Zoom scale
+      .translateExtent([[0, 0], [width, height]]) // Pan boundaries
+      .on("zoom", handleZoom);
+
+    svgContainer.call(zoom);
+
+    // Scales
+    let x = d3.scaleLinear().domain([0, 10]).range([0, width]);
+    const y = d3.scaleBand()
+      .domain(movies.map(d => d.title))
+      .range([0, height])
+      .padding(0.1);
+
+    // Axes
+    const xAxisGroup = svg.append("g")
+      .attr("class", "x-axis")
+      .attr("transform", `translate(0, ${height})`);
+    const yAxisGroup = svg.append("g").attr("class", "y-axis");
+
+    // Gridlines
+    const gridGroup = svg.append("g").attr("class", "gridlines");
+
+    // Y-axis label (at the top)
+    svg.append("text")
+      .attr("class", "y-axis-label")
+      .attr("x", -20) // Slightly left of the left margin
+      .attr("y", -10) // Position above the chart
+      .attr("text-anchor", "start")
+      .style("font-size", "14px")
+      .style("font-weight", "bold")
+      .text("Movie Titles");
+
+    // X-axis label (on the right)
+    svg.append("text")
+      .attr("class", "x-axis-label")
+      .attr("x", width + 40) // Offset to the right beyond the chart
+      .attr("y", height + 6 ) // Near the bottom of the chart
+      .attr("text-anchor", "middle")
+      .style("font-size", "14px")
+      .style("font-weight", "bold")
+      .text("Ratings");
+
+    // Draw axes
+    function drawAxes() {
+      xAxisGroup.call(d3.axisBottom(x).ticks(10));
+      yAxisGroup.call(d3.axisLeft(y));
+    }
+
+    // Draw gridlines
+    function drawGridlines(show = true) {
+      gridGroup.selectAll(".gridline").remove();
+      if (show) {
+        gridGroup.selectAll(".gridline")
+          .data(x.ticks(10))
+          .enter()
+          .append("line")
+          .attr("class", "gridline")
+          .attr("x1", d => x(d))
+          .attr("x2", d => x(d))
+          .attr("y1", 0)
+          .attr("y2", height);
+      }
+    }
+
+    // Draw bars
+    function drawBars(color = "#4682b4") {
+      const bars = svg.selectAll(".bar").data(movies);
+
+      bars.enter()
+        .append("rect")
+        .attr("class", "bar")
+        .merge(bars)
+        .attr("x", 0)
+        .attr("y", d => y(d.title))
+        .attr("width", d => x(d.rating))
+        .attr("height", y.bandwidth())
+        .style("fill", color)
+        .on("mouseover", function (event, d) {
+          d3.select(this).classed("highlighted", true); // Highlight with a different color
+          tooltip
+            .style("display", "inline-block")
+            .style("left", `${event.pageX + 10}px`)
+            .style("top", `${event.pageY - 20}px`)
+            .html(`<strong>${d.title}</strong><br>Rating: ${d.rating}`);
+        })
+        .on("mouseout", function () {
+          d3.select(this).classed("highlighted", false); // Remove highlight
+          tooltip.style("display", "none");
+        });
+
+      bars.exit().remove();
+
+      // Update labels if they are currently shown
+      if (showLabels) {
+        drawLabels();
+      } else {
+        svg.selectAll(".bar-label").remove();
+      }
+    }
+
+    // Draw labels for bars
+    function drawLabels() {
+      svg.selectAll(".bar-label").remove(); // Clear existing labels
+
+      svg.selectAll(".bar-label")
+        .data(movies)
+        .enter()
+        .append("text")
+        .attr("class", "bar-label")
+        .attr("x", d => x(d.rating) + 5) // Position the label slightly to the right of the bar
+        .attr("y", d => y(d.title) + y.bandwidth() / 2 + 4) // Center the label vertically
+        .text((d, i) => i + 1) // Use sequential numbers starting from 1
+        .style("font-size", "12px")
+        .style("fill", "black");
+    }
+
+    // Handle zoom and pan
+    function handleZoom(event) {
+      svg.attr("transform", event.transform);
+    }
+
+    // Reset zoom
+    function resetZoom() {
+      svgContainer.transition().duration(750).call(zoom.transform, d3.zoomIdentity);
+    }
+
+    // Sort data and redraw bars
+    function sortData(sortBy) {
+      if (sortBy === "rating") {
+        movies.sort((a, b) => b.rating - a.rating);
+      } else if (sortBy === "name") {
+        movies.sort((a, b) => d3.ascending(a.title, b.title));
+      }
+      y.domain(movies.map(d => d.title));
+      drawAxes();
+      drawBars(d3.select("#color-picker").property("value"));
+    }
+
+    // Filter data based on rating
+    function filterData() {
+      const maxRating = +d3.select("#filter-slider").property("value");
+      d3.select("#filter-value").text(maxRating);
+      movies = originalMovies.filter(d => d.rating <= maxRating);
+      y.domain(movies.map(d => d.title));
+      drawAxes();
+      drawBars(d3.select("#color-picker").property("value"));
+    }
+
+    // Toggle bar labels
+    function toggleLabels() {
+      showLabels = !showLabels; // Toggle the state
+      const button = d3.select("#toggle-labels");
+      if (showLabels) {
+        drawLabels();
+        button.text("Hide Labels"); // Update button text
+      } else {
+        svg.selectAll(".bar-label").remove(); // Remove labels
+        button.text("Show Labels"); // Update button text
+      }
+    }
+
+    // Reset the entire chart
+    function resetChart() {
+      movies = [...originalMovies]; // Reset the dataset
+      showLabels = false; // Reset labels
+      d3.select("#toggle-labels").text("Show Labels"); // Reset the button text
+      d3.select("#filter-slider").property("value", 10); // Reset filter slider
+      d3.select("#filter-value").text(10); // Reset filter slider value
+      d3.select("#color-picker").property("value", "#4682b4"); // Reset bar color
+      resetZoom(); // Reset zoom
+      drawBars("#4682b4"); // Redraw bars with default color
+      drawAxes();
+    }
+
+    // Initial render
+    drawAxes();
+    drawBars();
+    drawGridlines();
+
+    // Control panel interactivity
+    d3.select("#rating-scale-slider").on("input", function () {
+      const scale = +this.value;
+      d3.select("#rating-scale-value").text(scale);
+      x = d3.scaleLinear().domain([0, scale]).range([0, width]);
+      drawAxes();
+      drawBars(d3.select("#color-picker").property("value"));
+      drawGridlines(d3.select("#toggle-grid").property("checked"));
+    });
+
+    d3.select("#sort-options").on("change", function () {
+      sortData(this.value);
+    });
+
+    d3.select("#aggregate-function").on("change", function () {
+      const func = this.value;
+      if (func !== "none") {
+        const result = func === "min" ? d3.min(movies, d => d.rating)
+          : func === "max" ? d3.max(movies, d => d.rating)
+          : func === "sum" ? d3.sum(movies, d => d.rating)
+          : d3.mean(movies, d => d.rating);
+        alert(`Aggregate (${func.toUpperCase()}): ${result.toFixed(2)}`);
+      }
+      this.value = "none"; // Reset dropdown
+    });
+
+    d3.select("#toggle-grid").on("change", function () {
+      drawGridlines(this.checked);
+    });
+
+    d3.select("#reset-zoom").on("click", resetZoom);
+
+    d3.select("#reset-chart").on("click", resetChart);
+
+    d3.select("#color-picker").on("input", function () {
+      drawBars(this.value);
+    });
+
+    d3.select("#filter-slider").on("input", filterData);
+
+    d3.select("#toggle-labels").on("click", toggleLabels);
+  </script>
+</body>
+</html>

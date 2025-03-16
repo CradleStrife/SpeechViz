@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Get Domain Values</title>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      text-align: center;
+    }
+    #vis {
+      margin: 20px auto;
+      max-width: 600px;
+    }
+    button {
+      margin: 5px;
+      padding: 10px 15px;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h1>Get Scale Domain from Vega-Lite</h1>
+  <div id="vis"></div>
+  <button onclick="getDomain('x')">Get X Domain</button>
+  <button onclick="getDomain('y')">Get Y Domain</button>
+  <script>
+    // Define the dataset
+    const data = [
+      { x: 10, y: 20 },
+      { x: 15, y: 25 },
+      { x: 20, y: 35 },
+      { x: 25, y: 40 },
+      { x: 30, y: 50 },
+      { x: 35, y: 55 },
+      { x: 40, y: 70 },
+      { x: 45, y: 75 }
+    ];
+
+    // Define the Vega-Lite specification
+    const spec = {
+      $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+      data: { values: data },
+      mark: "circle",
+      encoding: {
+        x: {
+          field: "x",
+          type: "quantitative"
+        },
+        y: {
+          field: "y",
+          type: "quantitative"
+        }
+      }
+    };
+
+    let vegaView;
+
+    // Render the chart using Vega-Embed
+    vegaEmbed("#vis", spec).then(({ view }) => {
+      vegaView = view; // Store the Vega View instance for later use
+    });
+
+    // Function to get the domain of a scale
+    function getDomain(axisField) {
+      if (!vegaView) {
+        console.warn("Chart is not initialized yet.");
+        return;
+      }
+
+      // Vega scale names are typically the same as the encoding channels
+      const scaleName = axisField;
+
+      // Get the Vega scale function
+      const scaleFunction = vegaView.scale(scaleName);
+
+      // Get the domain directly from the scale function
+      if (scaleFunction && typeof scaleFunction.domain === "function") {
+        const domain = scaleFunction.domain(); // Call domain() to get the array
+        console.log(`Domain of ${axisField}:`, domain);
+        alert(`Domain of ${axisField}: [${domain}]`);
+      } else {
+        console.warn(`Scale "${scaleName}" not found or does not have a domain.`);
+      }
+    }
+  </script>
+</body>
+</html>
